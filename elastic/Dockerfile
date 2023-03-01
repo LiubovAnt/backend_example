@@ -1,13 +1,15 @@
 # Образ, от которого идет наследование
-FROM python:3.10
+FROM python:3.10.3-alpine
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 # Рабочая директория для CMD и ENTRYPOINT
-WORKDIR /app
+WORKDIR /etl
 # Устанавливаем зависимости 
-COPY /app/requirements.txt /app/
+COPY /etl/requirements.txt /etl/
 RUN pip install --upgrade pip
 RUN pip3 install --no-cache-dir -r ./requirements.txt
 # Добавляем внутрь образа папку с приложением 
-COPY ./app /app
-CMD gunicorn config.wsgi:application --bind 0.0.0.0:8000
+COPY ./etl /etl
+RUN chmod +x /etl/entrypoint.sh
+ENTRYPOINT ["/etl/entrypoint.sh"]
+#CMD python3 main.py

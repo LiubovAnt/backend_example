@@ -1,0 +1,16 @@
+# Образ, от которого идет наследование
+FROM python:3.10.3-alpine
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+# Устанавливаем зависимости 
+COPY ./data/loader/requirements.txt /data/
+RUN pip install --upgrade pip && pip3 install --no-cache-dir -r /data/requirements.txt
+# Добавляем внутрь образа папку с приложением 
+COPY ./data /data
+# Рабочая директория для CMD и ENTRYPOINT
+COPY ./entrypoint_data.sh /entrypoint.sh
+WORKDIR /data
+RUN chmod +x /entrypoint.sh
+# run entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,0 +1,13 @@
+# Образ, от которого идет наследование
+FROM python:3.9
+# Рабочая директория для CMD и ENTRYPOINT
+WORKDIR /app
+# Устанавливаем зависимости 
+COPY requirements.txt /app/
+RUN export PYTHONDONTWRITEBYTECODE=1 \
+    && export PYTHONUNBUFFERED=1 \
+    && pip install --upgrade pip && pip3 install --no-cache-dir -r ./requirements.txt
+# Добавляем внутрь образа папку с приложением 
+COPY ./app /app
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

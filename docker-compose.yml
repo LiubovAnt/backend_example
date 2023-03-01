@@ -1,37 +1,109 @@
 version: '3'
 
 services:
-  # База данных
-  db:
-    image: postgres:13.0-alpine
+  # ---------------------
+  # Movie
+  # ---------------------
+  # База данных для movie
+  movie_db:
+    image: postgres:13.9-alpine
+    container_name: movie_db
     restart: always
+    env_file:
+      - .env.movie.example
     environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
       - PGDATA=/var/lib/postgresql/data
     volumes:
-      - ${HOME}/postgresql/data:/var/lib/postgresql/data 
+      - ./data/postgresql_movie:/postgresql/var/lib/postgresql/data
+      - ./postgresql/movies_database.ddl:/docker-entrypoint-initdb.d/create_tables.sql
     expose:
       - 5432
+
   # Приложение с django
-  service:
-    build: .
+  movie_admin:
+    image: movie_admin
+    container_name: movie_admin
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     expose:
       - 8000
     env_file:
-      - ./app/config/.env
+      - .env.movie.example
+    volumes:
+      - ./admin/app:/app/
     depends_on:
-      - db
+      - movie_db
 
+  # Выгрузка данных из sqlite
+  movie_dataload:
+    image: movie_dataload
+    container_name: movie_dataload
+    build:
+      context: ./admin
+      dockerfile: DockerfileData
+    env_file:
+      - .env.movie.example
+    depends_on:
+      - movie_admin
+
+  # Elasticsearch
+  es:
+    image: elasticsearch:7.17.8
+    restart: always
+    expose:
+      - 9200
+    #volumes:
+    #  - ./data/es:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms200m -Xmx200m"
+
+  # ETL
+  etl:
+    build:
+      context: ./elastic
+      dockerfile: Dockerfile
+    env_file:
+      - .env.movie.example
+    volumes:
+      - ./elastic/etl:/etl/
+    depends_on:
+      - movie_db
+      - es
+
+  # Movie FastAPI API
+  movie_api:
+    build:
+      context: ./movie_api
+      dockerfile: DockerfileAPI
+    env_file:
+      - .env.movie.example
+    expose:
+      - 8001
+    depends_on:
+      - es
+      - movie_redis
+
+  # Redis for movie API
+  movie_redis:
+    image: redis:7.0.8
+    restart: always
+    expose:
+      - 6379
+
+  # ---------------------
   # Nginx
+  # ---------------------
   nginx:
-    image: nginx:1.21.6
+    image: nginx:1.23.3
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/configs:/etc/nginx/conf.d:ro
-      - ./app/static:/data/static:ro
+      - ./admin/app/static:/data/static:ro
     ports:
       - 80:80
     depends_on:
-      - service
+      - movie_admin
+      - movie_api
