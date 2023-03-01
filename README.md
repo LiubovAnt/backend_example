@@ -12,7 +12,8 @@
 
 # Запуск проекта в тестовом режиме
 
-`docker compose -d --build`
+`docker compose -d --build up`
+
 `docker compose up`
 
 Адмика живет по адресу: http://127.0.0.1/admin login: admin, password: 123qwe.
